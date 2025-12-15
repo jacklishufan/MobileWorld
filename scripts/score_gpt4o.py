@@ -2,13 +2,28 @@
 from openai import OpenAI,AsyncOpenAI
 import base64
 import argparse
+import yaml
 parser = argparse.ArgumentParser()
 parser.add_argument('output', type=str, help='Path to the config YAML file')
 parser.add_argument('--image_root',default='mobileworldbench/gen_images', type=str, help='Root directory for images')
+parser.add_argument('--config',default=None,type=str, help='Path to the config YAML file for judge model')
+parser.add_argument('--limit',default=None,type=str, help='limit the number of eval samples, useful for debugging')
+
 args = parser.parse_args()
 
-client = OpenAI()
-model = "gpt-4o-mini"
+
+if args.config is None:
+    client = OpenAI()
+    model = "gpt-4o-mini"
+else:
+    with open(args.config) as f:
+        data = yaml.safe_load(f)
+    # breakpoint()
+    client = OpenAI(
+        base_url=data['base_url'],
+        api_key=data['api_key']  # vLLM doesn’t require authentication
+    )   
+    model = data['model']
 
 
 def encode_image(image_path):
@@ -143,19 +158,12 @@ import sys
 in_file = args.output
 out_file = in_file.replace('.csv','_scored.csv')
 data = pd.read_csv(in_file)  # Assume data.csv has columns: image1_path, image2_path, question
-image_root = '/data1/jacklishufan/androidcontrol/android_control/processed/'
 all_qa = []
 data = data
 process_row(data.iloc[0])
-# data =data.sample(frac=1, random_state=42).reset_index(drop=True)
-
-all_images = pd.read_csv('/data1/jacklishufan/flymyai-lora-trainer/data_scripts/aitw_test_2k_500.csv')
-seed = 55
-all_images_sample = all_images.input_image.sample(250,random_state=seed)
-all_images_sample = set(all_images_sample.tolist())
-
-data  = data[[x in all_images_sample for x in data.input_image]]
-# parallel processing using concurrent.futures
+if args.limit is not None:
+    data  = data[:args.limit]
+print(len(data))
 from concurrent.futures import ThreadPoolExecutor, as_completed
 with ThreadPoolExecutor(max_workers=16) as executor:
     futures = [executor.submit(process_row, row) for idx, row in tqdm(data.iterrows())]
