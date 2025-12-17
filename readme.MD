@@ -1,6 +1,6 @@
 # MobileWorldBench: Towards Semantic World Modeling For Mobile Agents
 
-[Arxiv(TBD)]
+[Arxiv](https://arxiv.org/abs/2512.14014)
 
 ### Benchmark
 
